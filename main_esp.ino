@@ -4,21 +4,35 @@
 #include <ArduinoJson.h>
 #include "EmonLib.h"   //https://github.com/openenergymonitor/EmonLib
 #include "WiFi.h"
- 
 #include <Wire.h>
 #include <SPI.h>
  
 #define AWS_IOT_PUBLISH_TOPIC   "esp32/pub"
 #define AWS_IOT_SUBSCRIBE_TOPIC "esp32/sub"
 
-EnergyMonitor emon;
+EnergyMonitor emon_main;
+EnergyMonitor emon_dev1;
+EnergyMonitor emon_dev2;
+
 #define vCalibration 106.8
 #define currCalibration 0.52
 
-bool ledcondition = false;
+float voltage_main=0,current_main=0,power_main=0;
+float voltage_dev1=0,current_dev1=0,power_dev1=0;
+float voltage_dev2=0,current_dev2=0,power_dev2=0;
 
-float voltage=0,current=0,power=0;
-int relay = 32;
+int main_voltage_pin = 35;
+int main_current_pin = 34;
+int main_relay_pin = 32;
+
+int dev1_voltage_pin = 35;
+int dev1_current_pin = 34;
+int dev1_relay_pin = 32;
+
+int dev2_voltage_pin = 35;
+int dev2_current_pin = 34;
+int dev2_relay_pin = 32;
+
  
 WiFiClientSecure net = WiFiClientSecure();
 PubSubClient client(net);
@@ -32,15 +46,29 @@ void messageHandler(char* topic, byte* payload, unsigned int length)
   deserializeJson(doc, payload);
   const char* message = doc["message"];
 
-  if(strcmp(message,"on") == 0)
+  if(strcmp(message,"mainon") == 0)
   {
-    ledcondition = false;
-    digitalWrite(relay,ledcondition);
+    digitalWrite(main_relay_pin,false);
   }
-  else if(strcmp(message,"off") == 0)
+  else if(strcmp(message,"mainoff") == 0)
   {
-    ledcondition = true;
-    digitalWrite(relay,ledcondition);
+    digitalWrite(main_relay_pin,true);
+  }
+  else if(strcmp(message,"dev1on") == 0)
+  {
+    digitalWrite(dev1_relay_pin,false);
+  }
+  else if(strcmp(message,"dev1off") == 0)
+  {
+    digitalWrite(dev1_relay_pin,true);
+  }
+  else if(strcmp(message,"dev2on") == 0)
+  {
+    digitalWrite(dev2_relay_pin,false);
+  }
+  else if(strcmp(message,"dev2off") == 0)
+  {
+    digitalWrite(dev2_relay_pin,true);
   }
   
   Serial.println(message);
@@ -93,9 +121,18 @@ void connectAWS()
 void publishMessage()
 {
   StaticJsonDocument<200> doc;
-  doc["voltage"] = voltage;
-  doc["current"] = current;
-  doc["power"] = power;
+  doc["voltage_main"] = voltage_main;
+  doc["current_main"] = current_main;
+  doc["power_main"] = power_main;
+
+  doc["voltage_dev1"] = voltage_dev1;
+  doc["current_dev1"] = current_dev1;
+  doc["power_dev1"] = power_dev1;
+
+  doc["voltage_dev2"] = voltage_dev2;
+  doc["current_dev2"] = current_dev2;
+  doc["power_dev2"] = power_dev2;
+  
   char jsonBuffer[512];
   serializeJson(doc, jsonBuffer); // print to client
  
@@ -105,32 +142,56 @@ void publishMessage()
 void setup()
 {
   Serial.begin(115200);
-  pinMode(relay, OUTPUT);
-  digitalWrite(relay,LOW);
-  emon.voltage(35, vCalibration, 1.7); // Voltage: input pin, calibration, phase_shift
-  emon.current(34, currCalibration); // Current: input pin, calibration.
+  pinMode(main_relay_pin, OUTPUT);
+  digitalWrite(main_relay_pin,LOW);
+
+  pinMode(dev1_relay_pin, OUTPUT);
+  digitalWrite(dev1_relay_pin,LOW);
+
+  pinMode(dev2_relay_pin, OUTPUT);
+  digitalWrite(dev2_relay_pin,LOW);
+  
+  emon_main.voltage(main_voltage_pin, vCalibration, 1.7); // Voltage: input pin, calibration, phase_shift
+  emon_main.current(main_current_pin, currCalibration); // Current: input pin, calibration.
+
+  emon_dev1.voltage(dev1_voltage_pin, vCalibration, 1.7); // Voltage: input pin, calibration, phase_shift
+  emon_dev1.current(dev1_current_pin, currCalibration); // Current: input pin, calibration.
+
+  emon_dev2.voltage(dev2_voltage_pin, vCalibration, 1.7); // Voltage: input pin, calibration, phase_shift
+  emon_dev2.current(dev2_current_pin, currCalibration); // Current: input pin, calibration.
+  
   connectAWS();
 }
  
 void loop()
 {
-  emon.calcVI(20, 2000);
-  voltage = emon.Vrms;
-  current = emon.Irms;
-  power = emon.apparentPower;
+  emon_main.calcVI(20, 2000);
+  voltage_main = emon_main.Vrms;
+  current_main = emon_main.Irms;
+  power_main = emon_main.apparentPower;
+
+  emon_dev1.calcVI(20, 2000);
+  voltage_dev1 = emon_dev1.Vrms;
+  current_dev1 = emon_dev1.Irms;
+  power_dev1 = emon_dev1.apparentPower;
+
+  emon_dev2.calcVI(20, 2000);
+  voltage_dev2 = emon_dev2.Vrms;
+  current_dev2 = emon_dev2.Irms;
+  power_dev2 = emon_dev2.apparentPower;
  
     Serial.print("Vrms: ");
-    Serial.print(emon.Vrms, 2);
+    Serial.print(emon_main.Vrms, 2);
     Serial.print("V");
     Serial.print("\tIrms: ");
-    Serial.print(emon.Irms, 4);
+    Serial.print(emon_main.Irms, 4);
     Serial.print("A");
     Serial.print("\tPower: ");
-    Serial.print(emon.apparentPower, 4);
+    Serial.print(emon_main.apparentPower, 4);
     Serial.print("W");
     Serial.println();
  
   publishMessage();
   client.loop();
-  delay(1000);
+  delay(5000);
 }
