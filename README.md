@@ -43,7 +43,7 @@ The proposed solution is to automate the Readings collection process by using a 
 4. **Phase 4: Creating a User Interface**: Create a Website using the [Streamlit Package](https://docs.streamlit.io/) for Visualizing Collected data, Displaying Live Readings, Remote Control of Devices and Electricity Bill prediction for the upcoming weeks and months.
 
 ## AWS Overview:
-![AWS Architecture Reference](https://github.com/pradeepkarthik77/Smart_Electricity_Meter_IoT/assets/77573751/7af8dbc2-9ab8-4beb-85cd-32b95a6a0eae)
+![AWS Architecture Reference](https://github.com/pradeepkarthik77/Smart_Electricity_Meter_IoT/assets/77573751/fea75793-bacd-4368-88ce-f2a939ff7c48)
 
 
 ## DynamoDB tables:
