@@ -1,4 +1,5 @@
 #include "secrets.h"
+#include<stdlib.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -6,6 +7,9 @@
 #include "WiFi.h"
 #include <Wire.h>
 #include <SPI.h>
+#include<String.h>
+#include <LiquidCrystal.h>
+LiquidCrystal lcd(19, 23, 18, 17, 16, 15);
  
 #define AWS_IOT_PUBLISH_TOPIC   "esp32/pub"
 #define AWS_IOT_SUBSCRIBE_TOPIC "esp32/sub"
@@ -21,18 +25,19 @@ float voltage_main=0,current_main=0,power_main=0;
 float voltage_dev1=0,current_dev1=0,power_dev1=0;
 float voltage_dev2=0,current_dev2=0,power_dev2=0;
 
-int main_voltage_pin = 35;
-int main_current_pin = 34;
-int main_relay_pin = 32;
+int main_voltage_pin = 36; //22 //4
+int main_current_pin = 39; //21 //2
+int main_relay_pin = 27;
 
 int dev1_voltage_pin = 35;
 int dev1_current_pin = 34;
-int dev1_relay_pin = 32;
+int dev1_relay_pin = 26;
 
-int dev2_voltage_pin = 35;
-int dev2_current_pin = 34;
-int dev2_relay_pin = 32;
+int dev2_voltage_pin = 33;
+int dev2_current_pin = 32;
+int dev2_relay_pin = 25;
 
+char buffer[10];
  
 WiFiClientSecure net = WiFiClientSecure();
 PubSubClient client(net);
@@ -120,21 +125,24 @@ void connectAWS()
  
 void publishMessage()
 {
-  StaticJsonDocument<200> doc;
-  doc["voltage_main"] = voltage_main;
-  doc["current_main"] = current_main;
-  doc["power_main"] = power_main;
-
-  doc["voltage_dev1"] = voltage_dev1;
-  doc["current_dev1"] = current_dev1;
-  doc["power_dev1"] = power_dev1;
-
-  doc["voltage_dev2"] = voltage_dev2;
-  doc["current_dev2"] = current_dev2;
-  doc["power_dev2"] = power_dev2;
+  StaticJsonDocument<512> doc;
   
-  char jsonBuffer[512];
+  doc["a"] = String(voltage_main,2);
+  doc["b"] = String(current_main,2);
+  doc["c"] = String(power_main,2);
+
+  doc["d"] = String(voltage_dev1,2);
+  doc["e"] = String(current_dev1,2);
+  doc["f"] = String(power_dev1,2);
+
+  doc["g"] = String(voltage_dev2,2);
+  doc["h"] = String(current_dev2,2);
+  doc["i"] = String(power_dev2,2);
+  
+  char jsonBuffer[1024];
   serializeJson(doc, jsonBuffer); // print to client
+
+  Serial.println(jsonBuffer);
  
   client.publish(AWS_IOT_PUBLISH_TOPIC, jsonBuffer);
 }
@@ -147,6 +155,12 @@ void setup()
 
   pinMode(dev1_relay_pin, OUTPUT);
   digitalWrite(dev1_relay_pin,LOW);
+
+  pinMode(main_voltage_pin,INPUT);
+  pinMode(main_current_pin,INPUT);
+
+  pinMode(dev2_voltage_pin,INPUT);
+  pinMode(dev2_current_pin,INPUT);
 
   pinMode(dev2_relay_pin, OUTPUT);
   digitalWrite(dev2_relay_pin,LOW);
@@ -190,8 +204,31 @@ void loop()
     Serial.print(emon_main.apparentPower, 4);
     Serial.print("W");
     Serial.println();
+
+    Serial.print("Vrms: ");
+    Serial.print(emon_dev1.Vrms, 2);
+    Serial.print("V");
+    Serial.print("\tIrms: ");
+    Serial.print(emon_dev1.Irms, 4);
+    Serial.print("A");
+    Serial.print("\tPower: ");
+    Serial.print(emon_dev1.apparentPower, 4);
+    Serial.print("W");
+    Serial.println();
+
+    Serial.print("Vrms: ");
+    Serial.print(emon_dev2.Vrms, 2);
+    Serial.print("V");
+    Serial.print("\tIrms: ");
+    Serial.print(emon_dev2.Irms, 4);
+    Serial.print("A");
+    Serial.print("\tPower: ");
+    Serial.print(emon_dev2.apparentPower, 4);
+    Serial.print("W");
+    Serial.println();
+    Serial.println();
  
   publishMessage();
   client.loop();
-  delay(5000);
+  delay(1000);
 }
