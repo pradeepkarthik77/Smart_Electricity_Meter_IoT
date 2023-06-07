@@ -10,17 +10,20 @@ iot_client = boto3.client('iot-data')
 
 def lambda_handler(event, context):
     # Extract data from the event
-    current_main = event['current_main']
-    voltage_main = event['voltage_main']
-    power_main = event['power_main']
     
-    current_dev1 = event['current_dev1']
-    voltage_dev1 = event['voltage_dev1']
-    power_dev1 = event['power_dev1']
+    print(event)
     
-    current_dev2 = event['current_dev2']
-    voltage_dev2 = event['voltage_dev2']
-    power_dev2 = event['power_dev2']
+    voltage_main = float(event['a'])
+    current_main = float(event['b'])
+    power_main = float(event['c'])
+    
+    voltage_dev1 = float(event['d']) 
+    current_dev1 = float(event['e'])
+    power_dev1 = float(event['f'])
+    
+    voltage_dev2 = float(event['g'])
+    current_dev2 = float(event['h'])
+    power_dev2 = float(event['i'])
     
     if(voltage_main>300):
         message_text = "Hi,\nI have found that the voltage supply is abnormally high({0} volts) and for safety, I have suspended the current supply to our home. If you find this abnormal, Visit the website to turn the power back on.\nThanks.".format(
@@ -31,7 +34,7 @@ def lambda_handler(event, context):
 
         # Publish the formatted message
         response = sns.publish(
-                TopicArn = event['notify_topic_arn'],
+                TopicArn = "arn:aws:sns:us-east-1:277269862749:AlertTopic",
                 Message = message_text,
                 Subject = subject
             )
@@ -118,5 +121,24 @@ def lambda_handler(event, context):
     
     # Call the update_item method of the DynamoDBClient object
     response = dynamodb.update_item(**update_item_request)
+    
+    if response == 200:
+        try:
+            response = dynamodb.update_item(
+                TableName="date_power_data",
+                Key={"date": {"S": str(date)}},
+                UpdateExpression='SET power = power+:powerval',
+                ExpressionAttributeValues={
+                    ':powerval': {'N': str(power_main)}
+                }
+            )
+        except:
+            dynamodb.put_item(
+            TableName='date_power_data',
+            Item={
+                'date': {'S': str(date)},
+                'power': {'N': str(power_main)}
+            }
+        )
     
     return response
